@@ -1,0 +1,4 @@
+# Linux + Python >=3.14.2 for the HA 2026.9.4 compatibility environment.
+homeassistant==2026.9.4
+pytest-homeassistant-custom-component==0.13.367
+-r requirements-test.txt

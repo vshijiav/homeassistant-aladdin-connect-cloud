@@ -13,9 +13,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa
+        with:
+          category: integration
+          comment: "false"
+
   test:
+    name: HA ${{ matrix.ha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ha: "2026.9.4"
+            requirements: requirements-dev-ha2026.9.txt
+          - ha: "2026.10.1"
+            requirements: requirements-dev.txt
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -24,9 +43,11 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          cache-dependency-path: |
+            requirements-dev*.txt
+            requirements-test.txt
       - name: Install test dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install -r ${{ matrix.requirements }}
       - name: Lint
         run: ruff check .
       - name: Check formatting

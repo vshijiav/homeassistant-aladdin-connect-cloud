@@ -24,8 +24,9 @@ tests. No real Genie account was used, and no physical door was operated.** Thes
 results establish integration behavior and Home Assistant framework compatibility;
 live authentication and physical-device testing remain pending.
 
-The repository is kept private during device testing. GitHub Actions runs checks
-without account credentials and does not publish releases or change visibility.
+The repository is temporarily public for HACS installation during device testing.
+GitHub Actions checks HACS compatibility and runs the suite on Core 2026.9.4 and
+2026.10.1 without account credentials. It does not publish releases or change visibility.
 
 中文：自动化测试 65 项通过，覆盖率 98%；所有云端响应均为模拟数据。
-真实账号登录和实机门控仍待验证，实机测试期间仓库保持私有。
+真实账号登录和实机门控仍待验证，仓库临时公开以便通过 HACS 安装。

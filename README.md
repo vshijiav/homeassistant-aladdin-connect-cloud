@@ -6,7 +6,7 @@ A Home Assistant custom integration for Genie Aladdin Connect garage doors, port
 
 **Cloud control with direct Aladdin Connect account sign-in. No Home Assistant Cloud / Nabu Casa subscription is required by this integration.** An internet connection and access to the Genie cloud service are required; this integration does not implement local/LAN or offline control.
 
-**Status: private testing.** Automated tests pass against Home Assistant Core 2026.10.1, but authentication and commands have not yet been verified with a real Genie account and garage door. The repository will remain private during device testing. There is no automatic publication or release workflow.
+**Status: testing preview.** The repository is temporarily public so it can be installed through HACS. Authentication and commands have not yet been verified with a real Genie account and garage door. There is no automatic visibility change or release workflow.
 
 ## Features
 
@@ -22,9 +22,24 @@ The integration domain is `aladdin_connect_cloud`, and its UI name is **Aladdin 
 
 ## Installation
 
-The tested Home Assistant version is **2026.10.1**. No additional Python libraries need to be installed inside Home Assistant.
+Home Assistant **2026.9.4 or later** is required by the HACS manifest. CI checks Core **2026.9.4** and **2026.10.1**. No additional Python libraries need to be installed inside Home Assistant.
 
-1. Download the repository ZIP from **Code → Download ZIP**, or clone the repository. While it is private, you must be signed in to a GitHub account with access.
+### HACS custom repository
+
+With HACS already configured in Home Assistant:
+
+1. Open **HACS** in the sidebar, select the top-right **⋮** menu, then **Custom repositories**.
+2. Enter `https://github.com/vshijiav/homeassistant-aladdin-connect-cloud`.
+3. Select **Integration** as the repository type, then choose **Add**.
+4. Open **Aladdin Connect Cloud** in HACS and select **Download**. Use the default branch, `main`, while no release has been published.
+5. Restart Home Assistant completely.
+6. Open **Settings → Devices & services → Add integration**, search for **Aladdin Connect Cloud**, and enter your Genie app account email and password.
+
+This is a HACS custom integration repository, not a Supervisor app/add-on repository. Adding its URL under **Settings → Apps → Repositories** will not install it. It is not included in HACS's default catalog, so the custom-repository step is required. See [HACS custom-repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
+
+### Manual installation
+
+1. Download the repository ZIP from **Code → Download ZIP**, or clone the repository.
 2. Copy the entire `custom_components/aladdin_connect_cloud` folder into the `custom_components` folder in your Home Assistant configuration directory.
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration**, then search for **Aladdin Connect Cloud**.
@@ -46,7 +61,7 @@ On Home Assistant OS, the expected layout is:
 
 For other installation methods, use the directory containing your actual `configuration.yaml`. Do not add an extra repository-name folder between `custom_components` and `aladdin_connect_cloud`.
 
-No YAML integration configuration or Homebridge installation is needed. Manual installation is supported; the project is not listed in HACS.
+No YAML integration configuration or Homebridge installation is needed. Both HACS custom-repository installation and manual installation are supported.
 
 ## Entities
 
@@ -131,11 +146,11 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 .venv/bin/python -m pytest --cov --cov-report=term-missing
 ```
 
-The test suite uses real Home Assistant Core 2026.10.1 and its custom-integration test framework. All Genie HTTP requests are mocked, and external network sockets are disabled. The recorded result is **65 passing tests and 98% statement coverage**. See [VALIDATION.md](VALIDATION.md) for the validation scope.
+The test suite uses real Home Assistant Core and its custom-integration test framework. All Genie HTTP requests are mocked, and external network sockets are disabled. The previously recorded Core 2026.10.1 result is **65 passing tests and 98% statement coverage**. To reproduce the Core 2026.9.4 environment, use `requirements-dev-ha2026.9.txt` instead. See [VALIDATION.md](VALIDATION.md) and [GitHub Actions](https://github.com/vshijiav/homeassistant-aladdin-connect-cloud/actions) for validation results.
 
-GitHub Actions runs lint, format checks, and the same automated suite on pushes and pull requests. CI does not access a Genie account, operate a garage door, change repository visibility, or publish releases.
+GitHub Actions runs HACS validation, lint, format checks, and the same automated suite on Core 2026.9.4 and 2026.10.1. CI does not access a Genie account, operate a garage door, change repository visibility, or publish releases.
 
-Before making the repository public, verify it in a real Home Assistant installation:
+Before treating the testing preview as a verified device integration, check it in a real Home Assistant installation:
 
 - [ ] Account sign-in and device discovery.
 - [ ] Open/close commands and the full moving-to-settled state sequence.

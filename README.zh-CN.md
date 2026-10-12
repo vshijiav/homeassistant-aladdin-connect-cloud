@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**当前阶段：私有测试。** 自动化测试已通过，真实 Genie 账号登录和实机门控尚未验证。仓库在实机测试期间保持私有，没有自动公开或发布流程。英文 README 是主文档。
+**当前阶段：测试预览。** 仓库临时公开，便于通过 HACS 自定义仓库安装。真实 Genie 账号登录和实机门控尚未验证，没有自动改变可见性或发布流程。英文 README 是主文档。
 
 将 [homebridge-plugins/homebridge-aladdin-connect](https://github.com/homebridge-plugins/homebridge-aladdin-connect) 的云端协议改写为 Python / Home Assistant 集成。原始实现版本为 4.3.4，源码提交 `2fe528a525ffacf5d435569d50a7cf2e4daa87f8`。
 
@@ -12,9 +12,24 @@
 
 ## 安装
 
-建议使用 Home Assistant **2026.10.1**，这是本交付包的自动化测试版本。无需在 Home Assistant 中额外安装 Python 库。
+HACS 安装要求 Home Assistant **2026.9.4 或更新版本**。CI 检查 Core **2026.9.4** 和 **2026.10.1**，无需在 Home Assistant 中额外安装 Python 库。
 
-1. 在仓库页面使用 **Code → Download ZIP** 下载并解压，或克隆仓库；仓库私有期间，需要使用有访问权限的 GitHub 账号。
+### 通过 HACS 自定义仓库安装
+
+在 HA 中已配置好 HACS 的情况下：
+
+1. 打开侧栏 **HACS → 右上角 ⋮ → 自定义仓库（Custom repositories）**。
+2. 输入地址：`https://github.com/vshijiav/homeassistant-aladdin-connect-cloud`。
+3. 类型选择 **Integration / 集成**，点击 **Add / 添加**。
+4. 在 HACS 中打开 **Aladdin Connect Cloud**，点击 **Download / 下载**；尚无发布版本时使用默认分支 `main`。
+5. 完整重启 Home Assistant。
+6. 前往 **设置 → 设备与服务 → 添加集成**，搜索 **Aladdin Connect Cloud**，填写 Genie App 的邮箱和密码。
+
+地址应添加到 **HACS 的自定义仓库**，不是 **设置 → 应用/加载项 → 仓库**。项目尚未加入 HACS 默认目录，需要手动添加仓库地址。[HACS 官方说明](https://www.hacs.xyz/docs/faq/custom_repositories/)
+
+### 手动安装
+
+1. 在仓库页面使用 **Code → Download ZIP** 下载并解压，或克隆仓库。
 2. 将包中的 `custom_components/aladdin_connect_cloud` 整个文件夹复制到 Home Assistant 配置目录的 `custom_components` 下。HA OS 的配置目录通常为 `/config`；其他安装方式以实际 `configuration.yaml` 所在目录为准。
 3. 重启 Home Assistant。
 4. 打开 **设置 → 设备与服务 → 添加集成**，搜索 **Aladdin Connect Cloud**。
@@ -43,7 +58,7 @@
             └── zh-Hans.json
 ```
 
-请勿多套一层仓库名称目录。无需配置 YAML，也无需安装 Homebridge。本项目支持手动安装，尚未加入 HACS。
+请勿多套一层仓库名称目录。无需配置 YAML，也无需安装 Homebridge。本项目支持 HACS 自定义仓库和手动安装。
 
 ## 提供的实体
 
@@ -125,13 +140,13 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 .venv/bin/python -m pytest --cov --cov-report=term-missing
 ```
 
-测试环境固定为 Home Assistant 2026.10.1 / Python >= 3.14.2。测试覆盖登录与令牌缓存、令牌过期和 401 恢复、开关门 URL / 请求体、失败命令不重发、配置与重新认证、实际 HA 实体状态、故障/电池状态、共享门和忽略选项、后续设备发现、断网恢复以及卸载。
+默认开发环境固定为 Home Assistant 2026.10.1 / Python >= 3.14.2；验证 Core 2026.9.4 时使用 `requirements-dev-ha2026.9.txt`。测试覆盖登录与令牌缓存、令牌过期和 401 恢复、开关门 URL / 请求体、失败命令不重发、配置与重新认证、实际 HA 实体状态、故障/电池状态、共享门和忽略选项、后续设备发现、断网恢复以及卸载。
 
 仍需在实际 Home Assistant 和 Genie 账号上验证账号登录、设备列表和门控行为。测试通过不等于厂商当前线上接口已实测。
 
-GitHub Actions 会在推送和 PR 时运行代码检查与自动化测试，不访问真实 Genie 账号，不操作车库门，也不会改变仓库可见性或自动发布。
+GitHub Actions 会运行 HACS 验证、代码检查以及 Core 2026.9.4 / 2026.10.1 自动化测试，不访问真实 Genie 账号，不操作车库门，也不会改变仓库可见性或自动发布。
 
-开放仓库前，需要实机验证账号登录与设备发现、开关门及动作状态、断网恢复、更新密码与重新认证，以及适用型号的电池数据和共享门权限。记录测试结果时不要包含密码、令牌、邮箱或原始账号/设备响应。
+在将测试预览视为实机已验证版本前，需要检查账号登录与设备发现、开关门及动作状态、断网恢复、更新密码与重新认证，以及适用型号的电池数据和共享门权限。记录测试结果时不要包含密码、令牌、邮箱或原始账号/设备响应。
 
 ## 授权
 
