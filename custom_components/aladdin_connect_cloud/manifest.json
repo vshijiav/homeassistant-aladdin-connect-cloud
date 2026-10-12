@@ -1,0 +1,12 @@
+{
+  "domain": "aladdin_connect_cloud",
+  "name": "Aladdin Connect Cloud",
+  "codeowners": ["@vshijiav"],
+  "config_flow": true,
+  "documentation": "https://github.com/vshijiav/homeassistant-aladdin-connect-cloud",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/vshijiav/homeassistant-aladdin-connect-cloud/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

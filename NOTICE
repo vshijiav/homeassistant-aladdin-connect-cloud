@@ -1,0 +1,17 @@
+Aladdin Connect Cloud for Home Assistant
+
+This is an independent Python port of the Apache-2.0 project:
+https://github.com/homebridge-plugins/homebridge-aladdin-connect
+Source revision: 2fe528a525ffacf5d435569d50a7cf2e4daa87f8 (package 4.3.4).
+
+The original project and its contributors retain their rights. This package
+retains the original Apache License 2.0. API endpoints, Cognito app credentials,
+door status values, and battery conventions are derived from the original code.
+
+Changes: replaced TypeScript/Homebridge with Python/Home Assistant; introduced
+async I/O, config and options flows, HA coordinator entities, authentication
+recovery, command-delivery error handling, translations, and automated tests.
+
+This package is not an official Genie or Home Assistant integration. It uses
+the Genie cloud and does not implement a local/LAN device protocol. The upstream
+Homebridge repository is a source reference, not this port's support tracker.

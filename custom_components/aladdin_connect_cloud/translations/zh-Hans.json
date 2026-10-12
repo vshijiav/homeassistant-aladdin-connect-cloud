@@ -1,0 +1,58 @@
+{
+  "title": "Aladdin Connect 云端",
+  "config": {
+    "step": {
+      "user": {
+        "title": "连接 Aladdin Connect 账号",
+        "description": "使用 Genie Aladdin Connect App 的账号登录。车库门控制通过 Genie 云端，需要互联网连接。",
+        "data": {"username": "邮箱", "password": "密码"}
+      },
+      "reauth_confirm": {
+        "title": "重新认证 Aladdin Connect",
+        "description": "输入该账号当前使用的密码。",
+        "data": {"password": "密码"}
+      },
+      "reconfigure": {
+        "title": "更新账号密码",
+        "description": "输入现有 Aladdin Connect 账号的新密码。如果需要使用其他账号，请添加另一条集成配置。",
+        "data": {"password": "密码"}
+      }
+    },
+    "error": {
+      "invalid_auth": "邮箱或密码被服务拒绝。",
+      "cannot_connect": "无法连接 Genie 服务，或云端 API 返回了异常数据。请稍后重试。",
+      "auth_challenge": "账号需要额外的登录步骤。请先在 Aladdin Connect App 中完成，再重试。本集成不支持持续要求验证码的 MFA 登录。",
+      "no_doors": "没有找到车库门，请先在 Aladdin Connect App 中添加设备。"
+    },
+    "abort": {
+      "already_configured": "该账号已经配置。",
+      "reauth_successful": "账号认证已更新。",
+      "reconfigure_successful": "密码已更新。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Aladdin Connect 选项",
+        "data": {
+          "scan_interval": "轮询间隔（秒，5–60）",
+          "show_shared": "显示分享给该账号的门",
+          "ignored_doors": "忽略的门",
+          "battery_low_level": "低电量阈值（百分比，0–100）"
+        },
+        "data_description": {
+          "scan_interval": "门运动期间或发送指令后，每 5 秒查询一次，直到动作完成或指令等待超过 90 秒。",
+          "show_shared": "是否允许控制共享门由 Genie 服务端权限决定。",
+          "ignored_doors": "选择门，或输入云端门 ID，例如 F0AD4E1BC74D_1。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {"battery": {"name": "电池电量"}},
+    "binary_sensor": {
+      "problem": {"name": "车库门故障"},
+      "low_battery": {"name": "电量低"}
+    }
+  }
+}

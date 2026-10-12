@@ -1,0 +1,58 @@
+{
+  "title": "Aladdin Connect Cloud",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your Aladdin Connect account",
+        "description": "Sign in with the account used in the Genie Aladdin Connect app. Door control uses the Genie cloud and requires internet access.",
+        "data": {"username": "Email address", "password": "Password"}
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Aladdin Connect",
+        "description": "Enter the current password for this account.",
+        "data": {"password": "Password"}
+      },
+      "reconfigure": {
+        "title": "Update account password",
+        "description": "Enter the new password for the existing Aladdin Connect account. To use another account, add a separate integration entry.",
+        "data": {"password": "Password"}
+      }
+    },
+    "error": {
+      "invalid_auth": "The email address or password was rejected.",
+      "cannot_connect": "Unable to reach the Genie service, or the cloud API returned an unexpected response. Try again later.",
+      "auth_challenge": "This account requires an additional sign-in step. Complete it in the Aladdin Connect app, then try again. Ongoing MFA challenges are not supported.",
+      "no_doors": "No garage doors were found. Add a door in the Aladdin Connect app first."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Authentication was updated successfully.",
+      "reconfigure_successful": "The password was updated successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Aladdin Connect options",
+        "data": {
+          "scan_interval": "Polling interval (seconds, 5–60)",
+          "show_shared": "Show doors shared with this account",
+          "ignored_doors": "Ignore doors",
+          "battery_low_level": "Low-battery threshold (percent, 0–100)"
+        },
+        "data_description": {
+          "scan_interval": "While a door is moving, or after a command, the integration polls every 5 seconds until it settles or 90 seconds elapse.",
+          "show_shared": "The Genie service must grant permission to control shared doors.",
+          "ignored_doors": "Select doors or enter their cloud door IDs, such as F0AD4E1BC74D_1."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {"battery": {"name": "Battery"}},
+    "binary_sensor": {
+      "problem": {"name": "Door fault"},
+      "low_battery": {"name": "Low battery"}
+    }
+  }
+}
