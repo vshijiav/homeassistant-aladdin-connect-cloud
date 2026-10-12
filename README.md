@@ -6,7 +6,7 @@ A Home Assistant custom integration for Genie Aladdin Connect garage doors, port
 
 **Cloud control with direct Aladdin Connect account sign-in. No Home Assistant Cloud / Nabu Casa subscription is required by this integration.** An internet connection and access to the Genie cloud service are required; this integration does not implement local/LAN or offline control.
 
-**Status: testing preview.** The repository is temporarily public so it can be installed through HACS. Standalone authentication and device discovery succeeded with one real Genie account on Windows. Home Assistant setup after updating and physical door commands still require verification. There is no automatic visibility change or release workflow.
+**Status: testing preview; first Home Assistant test passed.** Standalone authentication and device discovery succeeded with one real Genie account on Windows. After updating to 1.0.1, the user reported that the first test in Home Assistant Core 2026.9.4 passed and appeared to work normally. Detailed test steps and longer-term results have not been recorded. The repository is public for HACS installation. There is no automatic visibility change or release workflow.
 
 ## Features
 
@@ -128,7 +128,7 @@ The client signs in directly to AWS Cognito using `USER_PASSWORD_AUTH`, then cal
 
 ## Troubleshooting setup
 
-Version **1.0.1** accepts both numeric and string controller IDs. A real-account diagnostic returned HTTP 200 for authentication and device discovery, with a string controller ID that version 1.0.0 could not convert to an integer. That conversion caused valid device data to be rejected during setup; version 1.0.1 fixes it. The update also distinguishes DNS, HTTPS/TLS, timeout, HTTP, permission, and response-format failures during account validation. Setup in Home Assistant after updating still needs confirmation.
+Version **1.0.1** accepts both numeric and string controller IDs. A real-account diagnostic returned HTTP 200 for authentication and device discovery, with a string controller ID that version 1.0.0 could not convert to an integer. That conversion caused valid device data to be rejected during setup; version 1.0.1 fixes it. The user subsequently reported that the first Home Assistant test passed. The update also distinguishes DNS, HTTPS/TLS, timeout, HTTP, permission, and response-format failures during account validation.
 
 If you installed an earlier version, open this integration in HACS, choose **Redownload** from its menu, download the default branch `main`, and fully restart Home Assistant. Then retry account setup. Refresh the browser if it still displays the old generic error text.
 
@@ -178,16 +178,16 @@ The test suite uses real Home Assistant Core and its custom-integration test fra
 
 GitHub Actions runs HACS validation, lint, format checks, and the same automated suite on Core 2026.9.4 and 2026.10.1. CI does not access a Genie account, operate a garage door, change repository visibility, or publish releases.
 
-Before treating the testing preview as a verified device integration, check it in a real Home Assistant installation:
+The first user-reported Home Assistant test passed. The validation record below distinguishes that result from checks whose detailed outcomes have not yet been recorded:
 
-- [ ] Account sign-in and device discovery.
+- [x] Account sign-in and device discovery: standalone diagnostic succeeded; first HA test passed after updating.
 - [ ] Open/close commands and the full moving-to-settled state sequence.
 - [ ] Connection failure and recovery.
 - [ ] Password update and reauthentication.
 - [ ] Battery readings, if the installed model reports them.
 - [ ] Shared-door permissions, if shared doors are used.
 
-Record results without passwords, tokens, account email addresses, or raw account/device responses. Real-device testing remains pending.
+Record results without passwords, tokens, account email addresses, or raw account/device responses. Longer-term operation and the detailed checks above remain to be documented.
 
 ## License
 

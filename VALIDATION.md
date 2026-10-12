@@ -31,7 +31,7 @@ disabled during tests. No real Genie account was used by the automated suite, an
 no physical door was operated.** These results establish integration behavior and
 Home Assistant framework compatibility. The manual diagnostic below is separate.
 
-The repository is temporarily public for HACS installation during device testing.
+The repository is public for HACS installation during device testing.
 GitHub Actions checks HACS compatibility and runs the suite on Core 2026.9.4 and
 2026.10.1 without account credentials. It does not publish releases or change visibility.
 
@@ -42,9 +42,13 @@ discovered one controller with one door. Its controller ID was a string that cou
 not be converted to an integer by the version 1.0.0 parser. This reproduces the
 parser rejection; the response shape passed the version 1.0.1 diagnostic checks.
 No credentials, response values, or device identifiers were recorded here.
-Home Assistant setup after updating and physical door commands remain unverified.
+After updating to 1.0.1, the user reported that the first test in Home Assistant
+Core 2026.9.4 passed and everything appeared normal. This records a successful
+initial test in one real installation. Specific command steps, longer-term operation,
+restart recovery, and network recovery outcomes have not been individually recorded.
 
 中文：HA 自动化测试 95 项通过，另有独立调试脚本测试 7 项通过，集成覆盖率 99%。
 自动化测试的云端响应均为模拟数据。另一次用户在 Windows 上运行的真实账号诊断，
 登录和设备查询均返回 HTTP 200；字符串设备 ID 触发了 1.0.0 的整数转换错误，
-1.0.1 已修复。更新后 HA 内添加和实机门控尚待验证，仓库临时公开以便通过 HACS 安装。
+1.0.1 已修复。用户随后反馈 HA 2026.9.4 首轮测试通过，使用正常。具体命令步骤、
+长期运行、重启恢复和断网恢复结果尚未逐项记录，仓库公开以便通过 HACS 安装。
