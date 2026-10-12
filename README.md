@@ -6,7 +6,7 @@ A Home Assistant custom integration for Genie Aladdin Connect garage doors, port
 
 **Cloud control with direct Aladdin Connect account sign-in. No Home Assistant Cloud / Nabu Casa subscription is required by this integration.** An internet connection and access to the Genie cloud service are required; this integration does not implement local/LAN or offline control.
 
-**Status: testing preview.** The repository is temporarily public so it can be installed through HACS. Authentication and commands have not yet been verified with a real Genie account and garage door. There is no automatic visibility change or release workflow.
+**Status: testing preview.** The repository is temporarily public so it can be installed through HACS. Standalone authentication and device discovery succeeded with one real Genie account on Windows. Home Assistant setup after updating and physical door commands still require verification. There is no automatic visibility change or release workflow.
 
 ## Features
 
@@ -128,7 +128,7 @@ The client signs in directly to AWS Cognito using `USER_PASSWORD_AUTH`, then cal
 
 ## Troubleshooting setup
 
-Version **1.0.1** accepts both numeric and string controller IDs. It also distinguishes DNS, HTTPS/TLS, timeout, HTTP, permission, and response-format failures during account validation. The first reported live setup failure is still being investigated; the original generic error does not identify its cause.
+Version **1.0.1** accepts both numeric and string controller IDs. A real-account diagnostic returned HTTP 200 for authentication and device discovery, with a string controller ID that version 1.0.0 could not convert to an integer. That conversion caused valid device data to be rejected during setup; version 1.0.1 fixes it. The update also distinguishes DNS, HTTPS/TLS, timeout, HTTP, permission, and response-format failures during account validation. Setup in Home Assistant after updating still needs confirmation.
 
 If you installed an earlier version, open this integration in HACS, choose **Redownload** from its menu, download the default branch `main`, and fully restart Home Assistant. Then retry account setup. Refresh the browser if it still displays the old generic error text.
 

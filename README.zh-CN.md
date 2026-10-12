@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**当前阶段：测试预览。** 仓库临时公开，便于通过 HACS 自定义仓库安装。真实 Genie 账号登录和实机门控尚未验证，没有自动改变可见性或发布流程。英文 README 是主文档。
+**当前阶段：测试预览。** 仓库临时公开，便于通过 HACS 自定义仓库安装。独立脚本已在 Windows 上成功完成一个真实 Genie 账号的登录和设备查询；更新后在 Home Assistant 内添加集成及实机门控仍待验证。没有自动改变可见性或发布流程。英文 README 是主文档。
 
 将 [homebridge-plugins/homebridge-aladdin-connect](https://github.com/homebridge-plugins/homebridge-aladdin-connect) 的云端协议改写为 Python / Home Assistant 集成。原始实现版本为 4.3.4，源码提交 `2fe528a525ffacf5d435569d50a7cf2e4daa87f8`。
 
@@ -122,7 +122,7 @@ target:
 
 ## 安装失败排查
 
-**1.0.1** 支持数字和字符串两种控制器 ID，并区分账号验证过程中的 DNS、HTTPS/TLS、超时、HTTP、权限和返回格式错误。首次实机测试报告的登录失败仍在排查；旧版统一错误提示无法确定具体原因。
+**1.0.1** 支持数字和字符串两种控制器 ID。真实账号的调试报告显示登录和设备查询均返回 HTTP 200，但设备 ID 是旧版 1.0.0 无法转成整数的字符串，导致有效设备数据被误报为异常；1.0.1 已修复。新版也区分账号验证过程中的 DNS、HTTPS/TLS、超时、HTTP、权限和返回格式错误。更新后在 HA 内添加集成仍需确认。
 
 如果已经安装旧版，打开 HACS 中的本集成，在菜单中选择 **重新下载 / Redownload**，下载默认分支 `main`，然后完整重启 Home Assistant，再尝试添加集成。如果仍显示旧版统一错误文本，刷新浏览器页面。
 
@@ -170,7 +170,7 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 
 默认开发环境固定为 Home Assistant 2026.10.1 / Python >= 3.14.2；验证 Core 2026.9.4 时使用 `requirements-dev-ha2026.9.txt`。测试覆盖登录与令牌缓存、令牌过期和 401 恢复、开关门 URL / 请求体、失败命令不重发、配置与重新认证、实际 HA 实体状态、故障/电池状态、共享门和忽略选项、后续设备发现、断网恢复以及卸载。
 
-仍需在实际 Home Assistant 和 Genie 账号上验证账号登录、设备列表和门控行为。测试通过不等于厂商当前线上接口已实测。
+独立脚本已成功验证一次真实账号登录和设备查询。仍需在实际 Home Assistant 中确认更新后的集成添加和门控行为，自动化测试通过不能代替这些检查。
 
 GitHub Actions 会运行 HACS 验证、代码检查以及 Core 2026.9.4 / 2026.10.1 自动化测试，不访问真实 Genie 账号，不操作车库门，也不会改变仓库可见性或自动发布。
 
