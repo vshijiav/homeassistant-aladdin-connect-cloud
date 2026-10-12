@@ -20,7 +20,13 @@
     },
     "error": {
       "invalid_auth": "The email address or password was rejected.",
-      "cannot_connect": "Unable to reach the Genie service, or the cloud API returned an unexpected response. Try again later.",
+      "cannot_connect": "Home Assistant could not connect to Genie. Check internet access from your Home Assistant host. Details: {error_detail}",
+      "dns_error": "Home Assistant could not resolve the Genie hostname. Check DNS on your Home Assistant host. Details: {error_detail}",
+      "tls_error": "Home Assistant could not establish a secure HTTPS connection to Genie. Check the host's clock and certificate trust. Details: {error_detail}",
+      "request_timeout": "The Genie request timed out. Check connectivity from Home Assistant and try again later. Details: {error_detail}",
+      "service_error": "Genie returned an HTTP error or a request limit. Try again later. Details: {error_detail}",
+      "permission_denied": "Genie denied access to the device list. Check this account's device access in the official app. Details: {error_detail}",
+      "unexpected_response": "Genie returned data this integration could not read. Share the diagnostic details with the integration maintainer. Details: {error_detail}",
       "auth_challenge": "This account requires an additional sign-in step. Complete it in the Aladdin Connect app, then try again. Ongoing MFA challenges are not supported.",
       "no_doors": "No garage doors were found. Add a door in the Aladdin Connect app first."
     },

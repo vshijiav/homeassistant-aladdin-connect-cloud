@@ -9,12 +9,19 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import re
 import time
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import (
+    ClientConnectorDNSError,
+    ClientError,
+    ClientSession,
+    ClientSSLError,
+    ClientTimeout,
+)
 
 from .const import (
     API_BASE_URL,
@@ -27,6 +34,63 @@ from .const import (
 
 class AladdinError(Exception):
     """An API or transport failure with a safe, credential-free message."""
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        stage: str = "unknown",
+        reason: str = "unknown",
+        status: int | None = None,
+        field: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.stage = stage
+        self.reason = reason
+        self.status = status
+        self.field = field
+
+    @property
+    def safe_diagnostic(self) -> str:
+        """Only emit code-owned labels; never echo an exception or API body."""
+        stages = {"authentication", "devices", "command"}
+        reasons = {
+            "dns",
+            "tls",
+            "timeout",
+            "connection",
+            "http",
+            "rate_limit",
+            "permission",
+            "invalid_json",
+            "invalid_response",
+            "credentials",
+            "challenge",
+        }
+        fields = {
+            "devices",
+            "device",
+            "device.id",
+            "device.doors",
+            "door",
+            "door.id",
+            "door.door_index",
+            "door.status",
+            "door.battery_level",
+            "door.link_status",
+            "door.identity",
+            "AuthenticationResult",
+            "AccessToken",
+            "ExpiresIn",
+        }
+        stage = self.stage if self.stage in stages else "unknown"
+        reason = self.reason if self.reason in reasons else "unknown"
+        detail = f"stage={stage}; reason={reason}"
+        if isinstance(self.status, int) and 100 <= self.status <= 599:
+            detail += f"; HTTP={self.status}"
+        if self.field in fields:
+            detail += f"; field={self.field}"
+        return detail
 
 
 class AladdinAuthError(AladdinError):
@@ -66,7 +130,7 @@ class DoorStatus(IntEnum):
 class Door:
     """A door and the device metadata needed by Home Assistant."""
 
-    device_id: int
+    device_id: int | str
     door_id: str
     index: int
     serial_number: str
@@ -105,29 +169,61 @@ class Door:
 def parse_doors(payload: Any) -> dict[str, Door]:
     """Parse cloud data; never turn malformed/missing data into a closed door."""
     if not isinstance(payload, dict) or not isinstance(payload.get("devices"), list):
-        raise AladdinConnectionError("Invalid device list returned by Genie")
+        raise AladdinConnectionError(
+            "Invalid device list returned by Genie",
+            stage="devices",
+            reason="invalid_response",
+            field="devices",
+        )
     result: dict[str, Door] = {}
+    field = "device"
     try:
         for device in payload["devices"]:
+            field = "device"
             if not isinstance(device, dict):
                 raise TypeError
-            device_id = int(device["id"])
+            field = "device.id"
+            device_id = device["id"]
+            # TypeScript's `id: number` annotation never coerced the upstream
+            # JSON at runtime. Preserve numeric and opaque string identifiers.
+            if isinstance(device_id, bool):
+                raise ValueError
+            if isinstance(device_id, int):
+                if device_id < 0:
+                    raise ValueError
+            elif not isinstance(device_id, str) or not re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9:_-]*",
+                device_id,
+            ):
+                raise ValueError
+            field = "device.doors"
             doors = device["doors"]
             if not isinstance(doors, list):
                 raise TypeError
             for raw in doors:
+                field = "door"
                 if not isinstance(raw, dict):
                     raise TypeError
+                field = "door.door_index"
                 index = int(raw["door_index"])
-                door_id = str(raw["id"])
-                if index < 0 or device_id < 0 or not door_id or raw["id"] is None:
+                if index < 0:
                     raise ValueError
+                field = "door.id"
+                door_id = str(raw["id"])
+                if not door_id or raw["id"] is None:
+                    raise ValueError
+                field = "door.status"
                 try:
                     status = DoorStatus(int(raw.get("status") or 0))
                 except ValueError:
                     status = DoorStatus.UNKNOWN
+                field = "door.battery_level"
                 battery = raw.get("battery_level")
                 battery = None if battery is None else max(0, min(100, int(battery)))
+                field = "door.link_status"
+                link_status = (
+                    int(raw["link_status"]) if raw.get("link_status") is not None else None
+                )
                 door = Door(
                     device_id=device_id,
                     door_id=door_id,
@@ -140,20 +236,24 @@ def parse_doors(payload: Any) -> dict[str, Door]:
                     ownership=str(device.get("ownership") or "unknown"),
                     status=status,
                     battery_level=battery,
-                    link_status=(
-                        int(raw["link_status"]) if raw.get("link_status") is not None else None
-                    ),
+                    link_status=link_status,
                     fault=bool(raw.get("fault")),
                     enabled=(
                         device.get("is_enabled", True) is not False
                         and raw.get("is_enabled", True) is not False
                     ),
                 )
+                field = "door.identity"
                 if door.unique_id in result:
                     raise ValueError
                 result[door.unique_id] = door
     except (KeyError, TypeError, ValueError, OverflowError) as err:
-        raise AladdinConnectionError("Invalid door data returned by Genie") from err
+        raise AladdinConnectionError(
+            "Invalid door data returned by Genie",
+            stage="devices",
+            reason="invalid_response",
+            field=field,
+        ) from err
     return result
 
 
@@ -179,6 +279,7 @@ class AladdinClient:
         command: bool = False,
     ) -> Any:
         """Send one request, without logging bodies or retrying door commands."""
+        stage = "authentication" if auth else "command" if command else "devices"
         try:
             async with self._session.request(
                 method,
@@ -189,13 +290,23 @@ class AladdinClient:
                 allow_redirects=False,
             ) as response:
                 if response.status == 401 and not auth:
-                    raise _UnauthorizedError("Access token rejected")
+                    raise _UnauthorizedError("Access token rejected", stage=stage, status=401)
                 if response.status == 403 and not auth:
                     # A permission denial must not cause credential re-entry or
                     # automatically resubmit a physical door command.
                     if command:
-                        raise AladdinCommandError("No permission to operate this door")
-                    raise AladdinConnectionError("Genie denied access to the device list")
+                        raise AladdinCommandError(
+                            "No permission to operate this door",
+                            stage=stage,
+                            reason="permission",
+                            status=403,
+                        )
+                    raise AladdinConnectionError(
+                        "Genie denied access to the device list",
+                        stage=stage,
+                        reason="permission",
+                        status=403,
+                    )
                 if response.status >= 400 or 300 <= response.status < 400:
                     if auth and response.status in (400, 401, 403):
                         try:
@@ -204,10 +315,25 @@ class AladdinClient:
                             data = {}
                         code = str(data.get("__type", "")) if isinstance(data, dict) else ""
                         if code.endswith(("TooManyRequestsException", "LimitExceededException")):
-                            raise AladdinConnectionError("Cognito request limit reached")
-                        raise AladdinAuthError("Cognito rejected the account credentials")
+                            raise AladdinConnectionError(
+                                "Cognito request limit reached",
+                                stage=stage,
+                                reason="rate_limit",
+                                status=response.status,
+                            )
+                        raise AladdinAuthError(
+                            "Cognito rejected the account credentials",
+                            stage=stage,
+                            reason="credentials",
+                            status=response.status,
+                        )
                     error_type = AladdinCommandError if command else AladdinConnectionError
-                    raise error_type(f"Cloud request failed (HTTP {response.status})")
+                    raise error_type(
+                        f"Cloud request failed (HTTP {response.status})",
+                        stage=stage,
+                        reason="http",
+                        status=response.status,
+                    )
                 if command:
                     # Upstream does not depend on the response body. Accept a
                     # successful HTTP status, including an empty 204 response.
@@ -215,13 +341,32 @@ class AladdinClient:
                 try:
                     return await response.json(content_type=None)
                 except (ValueError, ClientError) as err:
-                    raise AladdinConnectionError("Cloud returned invalid JSON") from err
+                    raise AladdinConnectionError(
+                        "Cloud returned invalid JSON",
+                        stage=stage,
+                        reason="invalid_json",
+                        status=response.status,
+                    ) from err
         except (ClientError, TimeoutError) as err:
+            if isinstance(err, ClientConnectorDNSError):
+                reason = "dns"
+            elif isinstance(err, ClientSSLError):
+                reason = "tls"
+            elif isinstance(err, TimeoutError):
+                reason = "timeout"
+            else:
+                reason = "connection"
             if command:
                 raise AladdinCommandError(
-                    "Command delivery is uncertain; check the door before trying again"
+                    "Command delivery is uncertain; check the door before trying again",
+                    stage=stage,
+                    reason=reason,
                 ) from err
-            raise AladdinConnectionError("Unable to reach the Genie cloud service") from err
+            raise AladdinConnectionError(
+                "Unable to reach the Genie cloud service",
+                stage=stage,
+                reason=reason,
+            ) from err
 
     async def _get_access_token(self) -> str:
         """Re-login only when needed; serialize simultaneous token requests."""
@@ -254,18 +399,36 @@ class AladdinClient:
                 auth=True,
             )
             if not isinstance(data, dict):
-                raise AladdinConnectionError("Invalid authentication response")
+                raise AladdinConnectionError(
+                    "Invalid authentication response",
+                    stage="authentication",
+                    reason="invalid_response",
+                    field="AuthenticationResult",
+                )
             if data.get("ChallengeName"):
                 raise AladdinChallengeError(
-                    "Complete the account challenge in the Aladdin Connect app"
+                    "Complete the account challenge in the Aladdin Connect app",
+                    stage="authentication",
+                    reason="challenge",
                 )
+            field = "AuthenticationResult"
             try:
-                token = data["AuthenticationResult"]["AccessToken"]
-                lifetime = float(data["AuthenticationResult"]["ExpiresIn"])
-                if not isinstance(token, str) or not token or not 0 < lifetime < float("inf"):
+                result = data["AuthenticationResult"]
+                field = "AccessToken"
+                token = result["AccessToken"]
+                if not isinstance(token, str) or not token:
+                    raise ValueError
+                field = "ExpiresIn"
+                lifetime = float(result["ExpiresIn"])
+                if not 0 < lifetime < float("inf"):
                     raise ValueError
             except (KeyError, TypeError, ValueError) as err:
-                raise AladdinConnectionError("Invalid authentication result") from err
+                raise AladdinConnectionError(
+                    "Invalid authentication result",
+                    stage="authentication",
+                    reason="invalid_response",
+                    field=field,
+                ) from err
             self._access_token = token
             self._expires_at = time.monotonic() + max(0, lifetime - 30)
             return token
@@ -290,7 +453,12 @@ class AladdinClient:
             except _UnauthorizedError as err:
                 await self._invalidate_token(token)
                 if attempt:
-                    raise AladdinAuthError("Genie rejected a new access token") from err
+                    raise AladdinAuthError(
+                        "Genie rejected a new access token",
+                        stage="devices",
+                        reason="credentials",
+                        status=401,
+                    ) from err
         raise AssertionError("Unreachable")
 
     async def async_set_door(self, door: Door, *, open_door: bool) -> None:
@@ -306,4 +474,9 @@ class AladdinClient:
             )
         except _UnauthorizedError as err:
             await self._invalidate_token(token)
-            raise AladdinAuthError("Genie rejected the access token") from err
+            raise AladdinAuthError(
+                "Genie rejected the access token",
+                stage="command",
+                reason="credentials",
+                status=401,
+            ) from err

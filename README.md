@@ -126,6 +126,34 @@ The client signs in directly to AWS Cognito using `USER_PASSWORD_AUTH`, then cal
 - Cognito MFA, password-change requirements, and other extra authentication challenges are not completed automatically. Complete applicable steps in the official app; accounts that continuously require an MFA challenge are not supported.
 - Home Assistant stores the username and password in its config entry. Protect the configuration directory and backups as you would other credentials. The integration does not log passwords, tokens, or full API responses.
 
+## Troubleshooting setup
+
+Version **1.0.1** accepts both numeric and string controller IDs. It also distinguishes DNS, HTTPS/TLS, timeout, HTTP, permission, and response-format failures during account validation. The first reported live setup failure is still being investigated; the original generic error does not identify its cause.
+
+If you installed an earlier version, open this integration in HACS, choose **Redownload** from its menu, download the default branch `main`, and fully restart Home Assistant. Then retry account setup. Refresh the browser if it still displays the old generic error text.
+
+The setup error includes a diagnostic such as:
+
+```text
+stage=devices; reason=invalid_response; field=device.id
+```
+
+The same diagnostic is logged under **Settings → System → Logs** by `custom_components.aladdin_connect_cloud.config_flow`, prefixed with `Account validation failed:`. The `stage` distinguishes Cognito authentication from device discovery; `reason`, optional `HTTP`, and optional `field` identify the failure category without including response values, credentials, or tokens.
+
+When reporting a failure, include the integration version, Home Assistant version, whether the official app works, and this diagnostic line. An app working on your phone does not establish connectivity from the Home Assistant host. Do not share account passwords, tokens, or raw API responses.
+
+### Standalone login diagnostic
+
+Run this from the repository directory in an interactive terminal with **Python 3.12 or later**. It uses only the standard library; Home Assistant and additional packages are not required. The script can also be downloaded and run on its own.
+
+```bash
+python scripts/debug_login.py
+```
+
+Enter the app email and password at the prompts; password input is hidden. The script performs one Cognito sign-in followed by one read-only device query. It does not operate doors or retry rejected requests. Its output and `aladdin-debug-report.json` contain HTTP status, failure categories, and response field types. Passwords, tokens, account email addresses, device identifiers, and names are omitted. The report also flags string controller IDs that the original 1.0.0 parser could not convert to integers.
+
+Share the JSON report to diagnose a failure. Run it on the Home Assistant host as well when investigating host-specific network differences. Optional arguments: `--timeout 30` and `--report path/to/report.json`.
+
 ## Relationship to the official integration
 
 Home Assistant's [built-in Aladdin Connect integration](https://www.home-assistant.io/integrations/aladdin_connect/) uses the manufacturer's partner SDK and OAuth authentication path. This project ports the Homebridge app API path instead and has no Nabu Casa dependency. It is an independent custom integration, not an official Genie or Home Assistant product.
@@ -146,7 +174,7 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 .venv/bin/python -m pytest --cov --cov-report=term-missing
 ```
 
-The test suite uses real Home Assistant Core and its custom-integration test framework. All Genie HTTP requests are mocked, and external network sockets are disabled. The previously recorded Core 2026.10.1 result is **65 passing tests and 98% statement coverage**. To reproduce the Core 2026.9.4 environment, use `requirements-dev-ha2026.9.txt` instead. See [VALIDATION.md](VALIDATION.md) and [GitHub Actions](https://github.com/vshijiav/homeassistant-aladdin-connect-cloud/actions) for validation results.
+The test suite uses real Home Assistant Core and its custom-integration test framework. All Genie HTTP requests are mocked, and external network sockets are disabled. The local Core 2026.10.1 result is **95 passing HA tests and 99% integration statement coverage**, plus **7 standalone diagnostic tests** checked with Python 3.12 on Windows. To reproduce the Core 2026.9.4 environment, use `requirements-dev-ha2026.9.txt` instead. See [VALIDATION.md](VALIDATION.md) and [GitHub Actions](https://github.com/vshijiav/homeassistant-aladdin-connect-cloud/actions) for validation results.
 
 GitHub Actions runs HACS validation, lint, format checks, and the same automated suite on Core 2026.9.4 and 2026.10.1. CI does not access a Genie account, operate a garage door, change repository visibility, or publish releases.
 

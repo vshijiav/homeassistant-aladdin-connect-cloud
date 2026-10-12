@@ -20,7 +20,13 @@
     },
     "error": {
       "invalid_auth": "邮箱或密码被服务拒绝。",
-      "cannot_connect": "无法连接 Genie 服务，或云端 API 返回了异常数据。请稍后重试。",
+      "cannot_connect": "Home Assistant 无法连接 Genie。请检查 HA 主机的互联网连接。诊断：{error_detail}",
+      "dns_error": "Home Assistant 无法解析 Genie 域名。请检查 HA 主机的 DNS。诊断：{error_detail}",
+      "tls_error": "Home Assistant 无法与 Genie 建立安全的 HTTPS 连接。请检查主机时间和证书信任。诊断：{error_detail}",
+      "request_timeout": "Genie 请求超时。请检查 HA 主机的网络连接，并稍后重试。诊断：{error_detail}",
+      "service_error": "Genie 返回 HTTP 错误或请求频率限制。请稍后重试。诊断：{error_detail}",
+      "permission_denied": "Genie 拒绝访问设备列表。请在官方 App 中检查该账号的设备权限。诊断：{error_detail}",
+      "unexpected_response": "Genie 返回了本集成无法读取的数据。请将诊断信息提供给集成维护者。诊断：{error_detail}",
       "auth_challenge": "账号需要额外的登录步骤。请先在 Aladdin Connect App 中完成，再重试。本集成不支持持续要求验证码的 MFA 登录。",
       "no_doors": "没有找到车库门，请先在 Aladdin Connect App 中添加设备。"
     },

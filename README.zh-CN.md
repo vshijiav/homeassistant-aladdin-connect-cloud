@@ -120,6 +120,34 @@ target:
 - Cognito MFA、改密码等额外登录挑战没有自动处理；界面会提示在官方 App 完成相关步骤。持续要求验证码的账号不受支持。
 - 账号密码由 Home Assistant 的配置条目保存；请按普通 HA 凭据保护配置目录和备份。代码不记录密码、令牌或完整 API 响应。
 
+## 安装失败排查
+
+**1.0.1** 支持数字和字符串两种控制器 ID，并区分账号验证过程中的 DNS、HTTPS/TLS、超时、HTTP、权限和返回格式错误。首次实机测试报告的登录失败仍在排查；旧版统一错误提示无法确定具体原因。
+
+如果已经安装旧版，打开 HACS 中的本集成，在菜单中选择 **重新下载 / Redownload**，下载默认分支 `main`，然后完整重启 Home Assistant，再尝试添加集成。如果仍显示旧版统一错误文本，刷新浏览器页面。
+
+新版错误提示包含诊断信息，例如：
+
+```text
+stage=devices; reason=invalid_response; field=device.id
+```
+
+同一条信息也会出现在 **设置 → 系统 → 日志** 中，日志来源为 `custom_components.aladdin_connect_cloud.config_flow`，内容以 `Account validation failed:` 开头。`stage` 区分 Cognito 登录和设备查询；`reason`、可选的 `HTTP` 和 `field` 标识错误类型，不包含返回值、账号、密码或 token。
+
+报告问题时提供集成版本、HA 版本、官方 App 是否正常，以及这条诊断信息。手机 App 正常不能证明 HA 主机能连接同一服务。不要提供密码、token 或原始 API 响应。
+
+### 独立登录调试脚本
+
+在仓库目录的交互式终端中运行，需要 **Python 3.12 或更新版本**，无需安装 Home Assistant 或额外依赖。也可以单独下载脚本运行：
+
+```bash
+python scripts/debug_login.py
+```
+
+按提示输入 App 邮箱和密码，密码输入隐藏。脚本只进行一次 Cognito 登录和一次只读设备查询，不操作车库门，不自动重试被拒绝的请求。终端输出和保存的 `aladdin-debug-report.json` 包含 HTTP 状态、失败类型和字段类型，不包含密码、token、邮箱、设备 ID 或名称。报告也会指出旧版 1.0.0 无法转成整数的字符串控制器 ID。
+
+提供该 JSON 报告即可帮助排查。若需要定位 HA 主机的网络差异，也应在 HA 所在主机运行。可选参数：`--timeout 30`、`--report path/to/report.json`。
+
 ## 与官方集成的关系
 
 Home Assistant 自带的 [Aladdin Connect 集成](https://www.home-assistant.io/integrations/aladdin_connect/) 使用厂商合作 SDK / OAuth 路径。本包按用户要求移植 Homebridge 的 App API 路径，并非替换官方集成或宣称获得厂商支持。App API 和内置客户端参数可能随厂商更新而改变。

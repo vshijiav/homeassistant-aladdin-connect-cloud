@@ -11,6 +11,7 @@ coverage.xml
 .env.*
 !.env.example
 *.log
+aladdin-debug-report*.json
 *.zip
 .DS_Store
 Thumbs.db

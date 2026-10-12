@@ -14,6 +14,8 @@ from custom_components.aladdin_connect_cloud.api import (
     AladdinConnectionError,
 )
 from custom_components.aladdin_connect_cloud.const import (
+    API_BASE_URL,
+    AUTH_URL,
     CONF_BATTERY_LOW_LEVEL,
     CONF_IGNORED_DOORS,
     CONF_SHOW_SHARED,
@@ -148,3 +150,104 @@ async def test_options_flow_without_loaded_coordinator(hass):
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options == options
+
+
+@pytest.mark.parametrize(
+    "stage,response,expected,detail",
+    [
+        ("authentication", {"status": 503}, "service_error", "reason=http; HTTP=503"),
+        (
+            "authentication",
+            {"status": 400, "json": {"__type": "TooManyRequestsException"}},
+            "service_error",
+            "reason=rate_limit; HTTP=400",
+        ),
+        (
+            "authentication",
+            {"json": {"AuthenticationResult": {"AccessToken": "private-token"}}},
+            "unexpected_response",
+            "reason=invalid_response; field=ExpiresIn",
+        ),
+        ("devices", {"status": 403}, "permission_denied", "reason=permission; HTTP=403"),
+        (
+            "devices",
+            {"text": "private@example.com"},
+            "unexpected_response",
+            "reason=invalid_json; HTTP=200",
+        ),
+        (
+            "devices",
+            {"json": {"devices": [{"id": "private@example.com", "doors": []}]}},
+            "unexpected_response",
+            "reason=invalid_response; field=device.id",
+        ),
+        ("devices", {"exc": TimeoutError("private-password")}, "request_timeout", "reason=timeout"),
+    ],
+)
+async def test_real_client_errors_show_and_log_only_safe_diagnostics(
+    hass, aioclient_mock, caplog, stage, response, expected, detail
+):
+    """Run the HTTP client through the real config flow, including redaction."""
+    if stage == "authentication":
+        aioclient_mock.post(AUTH_URL, **response)
+    else:
+        aioclient_mock.post(
+            AUTH_URL,
+            json={"AuthenticationResult": {"AccessToken": "private-token", "ExpiresIn": 3600}},
+        )
+        aioclient_mock.get(f"{API_BASE_URL}/devices", **response)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}, data=CONFIG
+    )
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": expected}
+    diagnostic = f"stage={stage}; {detail}"
+    assert result["description_placeholders"] == {"error_detail": diagnostic}
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "custom_components.aladdin_connect_cloud.config_flow"
+    ]
+    assert messages == [f"Account validation failed: {diagnostic}"]
+    assert not any("private" in message or CONFIG[CONF_USERNAME] in message for message in messages)
+
+
+@pytest.mark.parametrize("reason,expected", [("dns", "dns_error"), ("tls", "tls_error")])
+async def test_network_error_categories_in_user_form(hass, reason, expected):
+    with patch("custom_components.aladdin_connect_cloud.config_flow.AladdinClient") as client:
+        client.return_value.async_get_doors = AsyncMock(
+            side_effect=AladdinConnectionError(stage="authentication", reason=reason)
+        )
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}, data=CONFIG
+        )
+    assert result["errors"] == {"base": expected}
+    assert (
+        result["description_placeholders"]["error_detail"]
+        == f"stage=authentication; reason={reason}"
+    )
+
+
+@pytest.mark.parametrize(
+    "source", [config_entries.SOURCE_REAUTH, config_entries.SOURCE_RECONFIGURE]
+)
+async def test_password_update_failures_keep_diagnostics_and_credentials(hass, source):
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="owner@example.com", data=CONFIG)
+    entry.add_to_hass(hass)
+    with patch("custom_components.aladdin_connect_cloud.config_flow.AladdinClient") as client:
+        client.return_value.async_get_doors = AsyncMock(
+            side_effect=AladdinConnectionError(stage="devices", reason="http", status=503)
+        )
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": source, "entry_id": entry.entry_id},
+            data=CONFIG if source == config_entries.SOURCE_REAUTH else None,
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_PASSWORD: "updated-password"}
+        )
+    assert result["errors"] == {"base": "service_error"}
+    assert (
+        result["description_placeholders"]["error_detail"] == "stage=devices; reason=http; HTTP=503"
+    )
+    assert entry.data == CONFIG

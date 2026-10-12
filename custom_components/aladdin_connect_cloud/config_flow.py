@@ -1,5 +1,6 @@
 """UI setup, reauthentication, and options for Aladdin Connect Cloud."""
 
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -25,6 +26,18 @@ from .const import (
     NAME,
 )
 
+_LOGGER = logging.getLogger(__name__)
+_CONNECTION_ERRORS = {
+    "dns": "dns_error",
+    "tls": "tls_error",
+    "timeout": "request_timeout",
+    "http": "service_error",
+    "rate_limit": "service_error",
+    "permission": "permission_denied",
+    "invalid_json": "unexpected_response",
+    "invalid_response": "unexpected_response",
+}
+
 
 def _password_selector() -> selector.TextSelector:
     return selector.TextSelector(
@@ -37,16 +50,23 @@ class AladdinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._error_detail = ""
+
     async def _validate(self, username: str, password: str) -> str | None:
+        self._error_detail = ""
         client = AladdinClient(async_get_clientsession(self.hass), username, password)
         try:
             doors = await client.async_get_doors()
-        except AladdinChallengeError:
-            return "auth_challenge"
-        except AladdinAuthError:
-            return "invalid_auth"
-        except AladdinError:
-            return "cannot_connect"
+        except AladdinError as err:
+            self._error_detail = err.safe_diagnostic
+            _LOGGER.warning("Account validation failed: %s", self._error_detail)
+            if isinstance(err, AladdinChallengeError):
+                return "auth_challenge"
+            if isinstance(err, AladdinAuthError):
+                return "invalid_auth"
+            return _CONNECTION_ERRORS.get(err.reason, "cannot_connect")
         return None if doors else "no_doors"
 
     async def async_step_user(
@@ -76,6 +96,7 @@ class AladdinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+            description_placeholders={"error_detail": self._error_detail},
         )
 
     async def async_step_reauth(
@@ -102,6 +123,7 @@ class AladdinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=vol.Schema({vol.Required(CONF_PASSWORD): _password_selector()}),
             errors=errors,
+            description_placeholders={"error_detail": self._error_detail},
         )
 
     async def async_step_reconfigure(
@@ -122,6 +144,7 @@ class AladdinConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=vol.Schema({vol.Required(CONF_PASSWORD): _password_selector()}),
             errors=errors,
+            description_placeholders={"error_detail": self._error_detail},
         )
 
     @staticmethod

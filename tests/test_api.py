@@ -4,10 +4,15 @@ import asyncio
 import base64
 import hashlib
 import hmac
-from unittest.mock import AsyncMock
+import ssl
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from aiohttp import ClientConnectionError
+from aiohttp import (
+    ClientConnectionError,
+    ClientConnectorCertificateError,
+    ClientConnectorDNSError,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse
 from yarl import URL
@@ -18,6 +23,7 @@ from custom_components.aladdin_connect_cloud.api import (
     AladdinClient,
     AladdinCommandError,
     AladdinConnectionError,
+    AladdinError,
     DoorStatus,
     parse_doors,
 )
@@ -224,3 +230,75 @@ def test_unknown_status_and_disconnected_battery(devices_payload):
 
 def test_empty_device_list_is_valid():
     assert parse_doors({"devices": []}) == {}
+
+
+@pytest.mark.parametrize(
+    "device_id", ["101", "F0AD4E1BC74D", "01ab23cd-4567-89ab-cdef-0123456789ab"]
+)
+async def test_string_device_ids_preserve_identity_and_command_path(
+    hass, aioclient_mock, devices_payload, device_id
+):
+    """Opaque IDs are accepted without an integer conversion during discovery."""
+    devices_payload["devices"][0]["id"] = device_id
+    aioclient_mock.post(AUTH_URL, json=auth_payload())
+    aioclient_mock.get(f"{API_BASE_URL}/devices", json=devices_payload)
+    client = AladdinClient(async_get_clientsession(hass), "owner", "password")
+    doors = await client.async_get_doors()
+    door = doors[f"{device_id}:1"]
+    assert door.device_id == device_id
+    url = f"{API_BASE_URL}/command/devices/{device_id}/doors/1"
+    aioclient_mock.post(url, status=204)
+    await client.async_set_door(door, open_door=True)
+    assert len(calls(aioclient_mock, "POST", url)) == 1
+
+
+@pytest.mark.parametrize("device_id", [True, 1.5, None, "", "../private@example.com", -1])
+def test_invalid_device_id_reports_field_without_echoing_value(devices_payload, device_id):
+    devices_payload["devices"][0]["id"] = device_id
+    with pytest.raises(AladdinConnectionError) as exc:
+        parse_doors(devices_payload)
+    assert exc.value.safe_diagnostic == "stage=devices; reason=invalid_response; field=device.id"
+
+
+def test_missing_door_index_reports_field(devices_payload):
+    del devices_payload["devices"][0]["doors"][0]["door_index"]
+    with pytest.raises(AladdinConnectionError) as exc:
+        parse_doors(devices_payload)
+    assert exc.value.safe_diagnostic == (
+        "stage=devices; reason=invalid_response; field=door.door_index"
+    )
+
+
+@pytest.mark.parametrize(
+    "failure,reason",
+    [
+        (ClientConnectorDNSError(Mock(), OSError("private@example.com")), "dns"),
+        (ClientConnectorCertificateError(Mock(), ssl.CertificateError("private-token")), "tls"),
+        (TimeoutError("private-password"), "timeout"),
+        (ClientConnectionError("private-token"), "connection"),
+    ],
+)
+@pytest.mark.parametrize("stage", ["authentication", "devices"])
+async def test_transport_diagnostic_distinguishes_stage_and_reason(
+    hass, aioclient_mock, failure, reason, stage
+):
+    if stage == "authentication":
+        aioclient_mock.post(AUTH_URL, exc=failure)
+    else:
+        aioclient_mock.post(AUTH_URL, json=auth_payload())
+        aioclient_mock.get(f"{API_BASE_URL}/devices", exc=failure)
+    with pytest.raises(AladdinConnectionError) as exc:
+        await AladdinClient(async_get_clientsession(hass), "owner", "password").async_get_doors()
+    assert exc.value.safe_diagnostic == f"stage={stage}; reason={reason}"
+    assert "private" not in str(exc.value)
+
+
+def test_diagnostic_allowlist_never_echoes_exception_or_untrusted_labels():
+    err = AladdinError(
+        "private-password",
+        stage="private@example.com",
+        reason="private-token",
+        field="private-device-id",
+        status=1000,
+    )
+    assert err.safe_diagnostic == "stage=unknown; reason=unknown"
